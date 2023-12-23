@@ -1,0 +1,48 @@
+---
+title: "Assignment 4"
+author: "202274326"
+date: "AT 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(echo = FALSE) 
+```
+
+## Exercise 1
+
+```{r exercise 1, echo=TRUE}
+
+#Load the packages.
+library(DBI)
+library(RSQLite)
+
+#Create a new SQLite database.
+my_db <- "exercise1.sqlite"
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = my_db)
+
+if (file.exists(my_db)) {
+  cat("The database file exists!\n")
+} else {
+  cat("The database file does not exist.\n")
+}
+
+```
+
+
+
+```{r echo_example, echo=TRUE}
+# {[language] [chunk_name], [chunk_options]}
+# here we use echo=TRUE to override our global options and make the chunk appear exactly here. 
+
+print("This code chunk is visible in this section.")
+```
+
+## Appendix: All code in this assignment
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE} 
+# this chunk generates the complete code appendix. 
+# eval=FALSE tells R not to run (``evaluate'') the code here (it was already run before).
+```
