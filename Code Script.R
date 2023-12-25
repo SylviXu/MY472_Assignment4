@@ -141,3 +141,6 @@ for (i in 1:nrow(greatest_100_artists)) {
 
 # Review the first few rows of the updated dataframe.
 head(greatest_100_artists)
+
+# Write this data into my local storage for future usage.
+write.csv(greatest_100_artists, "artists_spotify_data", row.names = FALSE)
