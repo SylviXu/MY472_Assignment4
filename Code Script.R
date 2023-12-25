@@ -57,11 +57,9 @@ rank_1_50 <- rank_scrape()
 
 ## Get artist details from Spotify API. ================================================
 # Set up my client id and secret from a local file.
-# readRenviron("E:/文件/LSE/MY472/spotify id&secret.env")
-id <- "101b87acd32540eebade27bf9901c822"
-secret <- "f0ab7a10d41544539738d63dedf68c26"
-# id <- Sys.getenv("id")
-# secret <- Sys.getenv("secret")
+readRenviron("E:/文件/LSE/MY472/spotify id&secret.env")
+id <- Sys.getenv("id")
+secret <- Sys.getenv("secret")
 Sys.setenv(SPOTIFY_CLIENT_ID = id)
 Sys.setenv(SPOTIFY_CLIENT_SECRET = secret)
 access_token <- get_spotify_access_token()
