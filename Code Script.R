@@ -144,3 +144,69 @@ head(greatest_100_artists)
 
 # Write this data into my local storage for future usage.
 write.csv(greatest_100_artists, "artists_spotify_data", row.names = FALSE)
+data <- read.csv("artists_spotify_data")
+
+## Visualisation ==========================================================
+# Load "plotly" package for generating interactive plots.
+library(plotly)
+
+# Convert the Name column to a factor and keep the original order.
+data$Name <- factor(data$Name, levels = unique(data$Name))
+
+# Create a new text column that formats the hover message to be displayed as a string.
+data$hover_info <- paste("Name:", data$Name, "<br>Followers:", data$followers, "<br>Rank:", data$Rank)
+
+# Create a column plot to display the Spotify followers of the artists.
+follower <- ggplot(data, aes(y = Name, x = followers, text = hover_info)) + # Here set up the text parameter for hover information display.
+  geom_col() + # Create a column plot.
+  theme_light() + # Set up the theme.
+  theme(axis.text.y = element_text(size = 5), # Set up the size of the text.
+        axis.title.y = element_blank(), # Hide the title of the y axis.
+        plot.title = element_text(face = "bold"))+ # Set the title font.
+  labs(title = "P1. The Spotify Followers of the 100 Greatest Artists", x = "Followers") # Add a title.
+ggplotly(follower, tooltip = "text") # Display the interactive plot.
+
+# Create some popularity thresholds for analysis.
+data_reverse <- data[order(-data$popularity),] # Reorder the artists data.
+data_reverse$Name <- factor(data_reverse$Name, levels = data_reverse$Name) # Convert the Name column into a factor.
+divider_position <- which(data_reverse$popularity == 50)[1] # Find the first threshold where popularity score equals to 50.
+divider_position2 <- which(data_reverse$popularity == 75)[2] # Find another threshold where popularity score equals to 75.
+
+# Create a heat map to show the popularity of all artists.
+data$hover_info2 <- paste("Name:", data$Name, "<br>Popularity:", data$popularity, "<br>Rank:", data$Rank) # Set the hover information.
+heatmap <- ggplot(data, aes(x = Name, y = 1, fill = popularity, text = hover_info2)) +
+  geom_tile(color = "white") + # Create a tile plot.
+  labs(title = "P2. The Spotify Popularity Score of the 100 Greates Artists") +
+  theme_minimal() + # Set up the theme.
+  theme(plot.title = element_text(face = "bold"), # Set up the title font.
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 8), # Set the text of the x axis.
+        axis.text.y = element_blank(), # Hide the text of the y axis.
+        axis.ticks.y = element_blank(), # Hide the scale on the y axis of the chart.
+        axis.title.y = element_blank(), # Hide the title of the y axis.
+        axis.title.x = element_blank(), # Hide the title of the x axis.
+        panel.grid = element_blank()) + # Hide the grid.
+  scale_fill_gradientn(colors = c("white", "lightyellow", "red")) # Specify a gradient fill. 
+ggplotly(heatmap, tooltip = "text") # Display the interactive plot.
+
+# Create another heat map to show the popularity of all artists after sorting in reverse order of the popularity index.
+# This is done for comparing the differences between the rankings and popularity of all artists.
+heatmap_compare <- ggplot(data, aes(x = reorder(Name, -popularity), y = 1, fill = popularity, text = hover_info2)) +
+  geom_tile() + # Create a tile plot.
+  geom_vline(xintercept = divider_position, color = "darkblue", linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = divider_position2, color = "darkblue", linetype = "dashed", linewidth = 0.3) +
+  labs(title = "P2-2. The Spotify Popularity Score of the 100 Greates Artists", x = "Name", y = "", fill = "Popularity") + # Set the labs.
+  annotate("text", label = "Popularity score: 50", x = divider_position, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) + 
+  annotate("text", label = "Popularity score: 75", x = divider_position2, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) +
+  annotate("text", label = "26%", x = divider_position2/2, y = 1.25, color = "darkgreen") +
+  annotate("text", label = "64%", x = (divider_position+divider_position2)/2, y = 1.25, color = 'darkgreen') +
+  annotate("text", label = "10%", x = (divider_position+100)/2, y = 1.25, color = 'darkgreen') +
+  theme_minimal() + # Set up the theme.
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 8), # Set the text of the x axis.
+        axis.text.y = element_blank(), # Hide the text of the y axis.
+        axis.ticks.y = element_blank(), # Hide the scale on the y axis of the chart.
+        axis.title.y = element_blank(), # Hide the title of the y axis.
+        axis.title.x = element_blank(), # Hide the title of the x axis.
+        panel.grid = element_blank(), # Hide the grid.
+        plot.title = element_text(face  = "bold")) + # Set the title font.
+  scale_fill_gradientn(colors = c("white", "lightyellow", "red")) # Specify a gradient fill.
+ggplotly(heatmap_compare, tooltip = "text") # Display the interactive plot.
