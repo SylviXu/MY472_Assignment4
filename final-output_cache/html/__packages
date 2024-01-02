@@ -1,0 +1,16 @@
+rvest
+xml2
+dplyr
+spotifyr
+jsonlite
+httr
+tidyverse
+ggplot2
+tibble
+tidyr
+readr
+purrr
+stringr
+forcats
+lubridate
+plotly
