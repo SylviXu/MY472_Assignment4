@@ -1,3 +1,4 @@
+# Load the packages.
 library(httr)
 library(jsonlite)
 
@@ -12,41 +13,30 @@ search_youtube_channel <- function(artist_name, api_key) {
   
   response <- GET(url = base_url, query = query)
   data <- content(response, "parsed")
-  
+  # Handle the NA values.
   if (length(data$items) > 0) {
-    for (item in data$items) {
-      channel_title <- item$snippet$title
-      
-      # Enhanced title matching logic
-      if (tolower(channel_title) == tolower(artist_name) || 
-          grepl(paste0("^", artist_name, "$"), channel_title, ignore.case = TRUE)) {
-        # Exclude common non-official channel keywords
-        if (!grepl("topic|vevo", channel_title, ignore.case = TRUE)) {
-          return(item$snippet$channelId)
-        }
-      }
-    }
+    return(data$items[[1]]$snippet$channelId)
+  } else {
+    return(NA)
   }
-  
-  return(NA)  # Return NA if no official channel is found
 }
 
 # Get the channel ids by searching artists' names.
-channel_ids2 <- lapply(data$Name, search_youtube_channel, youtube_key)
-ids2 <- unlist(channel_ids2)
-yt_channel2 <- data.frame(names = data$Name, ids = ids2)
-# Data washing.
-yt_channel2 <- yt_channel2 %>%
-  filter(!(yt_channel2$names %in% c("James Brown", "Bo Diddley", "Jerry Lee Lewis", "Fats Domino", "The Who", "Jogn Lennon", "Simon and Garfunkel", "Sly and the Faminly Stone", "Public Enemy", "The Byrds", "Run-DMC", "Queen", "The Sex Pistols", "Phil Spector", "CREAM", "Jackie Wilson", "Beastie Boys", "The Stooges", "The Four Tops", "Eminen", "Gram Parsons", "The Yard Birds", "Carlos Santana", "Tom Petty", "Guns N' Roses", "Diana Ross and the Supremes", "Carl Perkins")))%>%
-  na.omit()
+channel_ids <- lapply(data$Name, search_youtube_channel, youtube_key)
+ids <- unlist(channel_ids)
+yt_channel <- data.frame(names = data$Name, ids = ids)
+
 # Non-return sampling.
-sampled_rows <- sample(nrow(yt_channel2), 30, replace = FALSE)
-sampled_channel <- yt_channel2[sampled_rows, ]
+# Generate a sampling index (start at 1 and draw every 4).
+sampling_indices <- seq(1, nrow(yt_channel), by=5)
+# Use the index to select from the sample.
+selected_samples <- yt_channel[sampling_indices, ]
 
-write.csv(sampled_channel, "sampled_channel", row.names = FALSE)
-# sampled_channel <- read.csv("sampled_channel")
+# Store the sampled table as a local file. Because the YouTube API has a ration for tokens everyday.
+write.csv(selected_samples, "selected_samples", row.names = FALSE)
+sampled_channel <- read.csv("selected_samples")
 
-# Function to get video statistics
+# Write a function to get video statistics.
 get_video_statistics <- function(video_id, api_key) {
   stats_base_url <- "https://www.googleapis.com/youtube/v3/videos"
   stats_params <- list(
@@ -56,7 +46,7 @@ get_video_statistics <- function(video_id, api_key) {
   )
   stats_response <- GET(url = stats_base_url, query = stats_params)
   stats_content <- fromJSON(rawToChar(stats_response$content), flatten = TRUE)
-  
+  # Handle potential NA values.
   if (length(stats_content$items) == 0) {
     return(list(
       ViewCount = NA,
@@ -66,12 +56,13 @@ get_video_statistics <- function(video_id, api_key) {
     ))
   }
   
-  # Ensure that each statistic is available, else NA
+  # Ensure that each statistic is available, else NA. And collect the view counts, comment counts, like counts and favourite counts.
   view_count <- ifelse(!is.null(stats_content$items$statistics.viewCount), stats_content$items$statistics.viewCount, NA)
   comment_count <- ifelse(!is.null(stats_content$items$statistics.commentCount), stats_content$items$statistics.commentCount, NA)
   like_count <- ifelse(!is.null(stats_content$items$statistics.likeCount), stats_content$items$statistics.likeCount, NA)
   fav_count <- ifelse(!is.null(stats_content$items$statistics.favoriteCount), stats_content$items$statistics.favoriteCount, NA)
   
+  # Structure the retrieved data as a data frame.
   video_stats <- data.frame(Like_Count = like_count,
                             View_Count = view_count,
                             Comment_Count = comment_count,
@@ -80,9 +71,10 @@ get_video_statistics <- function(video_id, api_key) {
   return(video_stats)
 }
 
-# Function to get the latest 5 videos and their statistics
+# Write a function to get the latest videos and their statistics.
 get_latest_videos <- function(channel_id, api_key) {
   base_url <- "https://www.googleapis.com/youtube/v3/search"
+  # Set the parameters.
   params <- list(
     part = "snippet",
     channelId = channel_id,
@@ -94,36 +86,95 @@ get_latest_videos <- function(channel_id, api_key) {
   response <- GET(url = base_url, query = params)
   content <- fromJSON(rawToChar(response$content), flatten = TRUE)
   
+  # Handle potential errors.
   if (!"items" %in% names(content)) {
     stop("No items found in API response.")
   }
   
-  video_details_list <- list()
-  for (i in 1:1) {
-    video_id <- content$items$id.videoId
-    video_title <- content$items$snippet.title
-    statistics <- get_video_statistics(video_id[i], api_key)
-    
-    video_details <- data.frame(
-      Title = video_title,
-      ViewCount = statistics$View_Count,
-      CommentCount = statistics$Comment_Count,
-      LikeCount = statistics$Like_Count,
-      FavoriteCount = statistics$Fav_Count,
-      stringsAsFactors = FALSE
-    )
-    
-    video_details_list[[i]] <- video_details
-  }
+  # Get the video's id, title, and statistics.
+  video_id <- content$items$id.videoId
+  video_title <- content$items$snippet.title
+  statistics <- get_video_statistics(video_id[1], api_key)
   
-  return(do.call(rbind, video_details))
+  # Create a new data frame as final output.
+  video_details <- data.frame(
+    Name = sampled_channel$names[which(sampled_channel$ids == channel_id)],
+    VideoTitle = video_title,
+    VideoID = video_id,
+    ViewCount = statistics$View_Count,
+    CommentCount = statistics$Comment_Count,
+    LikeCount = statistics$Like_Count,
+    FavoriteCount = statistics$Fav_Count,
+    stringsAsFactors = FALSE
+    )
+  
+  return(do.call(cbind, video_details))
 }
 
-video_data <- data.frame()
-# Fetch the latest 5 videos for each artist
+# Create a blank data frame for storage.
+video_data2 <- data.frame()
+# Fetch the latest video for each artist
 for (i in 1:nrow(sampled_channel)) {
   channel_id <- sampled_channel$ids[i]
-  videos <- get_latest_videos(channel_id, youtube_key)
-  # Process the videos data as needed
-  video_data <- rbind(video_data, videos)
+  videos2 <- get_latest_videos(channel_id, youtube_key)
+  # Process the videos data.
+  video_data2 <- rbind(video_data2, videos2)
 }
+
+# Create a function to get the first ten comments of each video.
+get_comments <- function(video_id, api_key) {
+  url <- paste0("https://www.googleapis.com/youtube/v3/commentThreads?key=", api_key,
+                "&textFormat=plainText&part=snippet&videoId=", video_id,
+                "&maxResults=20")  # Request for the top 20 comments.
+  response <- GET(url)
+  content <- fromJSON(rawToChar(response$content))
+  
+  # Extract the comments.
+  comments <- content$items$snippet$topLevelComment$snippet$textDisplay
+  combined_comments <- paste(comments, collapse = "\n")
+  return(combined_comments)
+}
+
+# Create a list for storage.
+Comments <- list()
+# Get the top few comments for each video.
+for (i in 1:nrow(video_data2)) {
+  comments <- get_comments(video_data2$VideoID[i], youtube_key)
+  Comments[i] <- comments
+}
+video_data2$Comments <- Comments
+
+# View the final data.
+print(video_data2)
+
+#====================================================
+# Create a list for storage.
+Comments2 <- list()
+# Get the top few comments for each video.
+for (i in 1:nrow(video_data2)) {
+  comments2 <- get_comments(video_data2$VideoID[i], youtube_key)
+  Comments2[i] <- comments2
+}
+video_data2$Comments <- Comments
+
+#install.packages("tm")
+#install.packages("wordcloud")
+library(tm)
+library(wordcloud)
+# Prepare the Text Data
+comments_text <- paste(Comments2, collapse=" ")
+# Create a Text Corpus and Clean the Data
+corpus <- Corpus(VectorSource(comments_text))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, stopwords("english")) # adjust language as necessary
+
+wordcloud(corpus, scale=c(5,0.6), max.words=80, random.order=FALSE, rot.per=0, colors=brewer.pal(8, "Set1"))
+# =============================================================
+install.packages("highcharter")
+library(highcharter)
+transformed_data <- video_data2 %>%
+  pivot_longer(cols = c(ViewCount, LikeCount, CommentCount),
+               names_to = "Statistics")
+transformed_data$value <- as.numeric(transformed_data$value)
+hchart(transformed_data, "bar", hcaes(x = Name, y = value, group = Statistics))
