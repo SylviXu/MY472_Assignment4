@@ -1,7 +1,7 @@
 ---
 title: "Assignment 4"
 author: "202274326"
-date: "January 4 2024"
+date: "January 5 2024"
 output: html_document
 ---
 
@@ -16,28 +16,32 @@ https://github.com/SylviXu/MY472_Assignment4
 
 ## Introduction 
 
-Rolling Stone Magazine assembled 100 greatest artists across a broad span of musical genres and published the ranking list in 2011. This report attempts to explore the enduring engagement of these artists and their works at the end of 2023. To develop this, I will retrieve the artists’ Spotify metrics and YouTube video stats as my analytical dataset, and interpret the findings with data visualisations. 
+Rolling Stone Magazine assembled a list of 100 greatest artists across a broad span of musical genres in 2011. This report attempts to explore the enduring engagement of these artists and their works at the end of 2023. To develop this, I will retrieve the artists’ Spotify metrics and YouTube video stats as my analytical dataset, and interpret the findings with data visualisations. 
 
 ## Data 
 
 1. Rolling Stone’s 100 Greatest Artists ranking data 
 
-This project aims to extract the rankings and names of the top 100 artists by scraping Rolling Stone’s webpage. Since the full list is split between two pages, the task involves retrieving data from both pages and merging it into a single data frame with 2 columns and 100 rows. 
+The project is to extract the rankings and names of the top 100 artists by scraping Rolling Stone’s webpage. The task involves retrieving data from two separate pages and merging it into a single data frame of 2 columns and 100 rows. 
 
 2. Spotify API 
 
-In this report, I will first fetch each artist's Spotify ID using API calls, and then retrieve their follower counts and popularity scores. To clarify, the popularity index on Spotify ranges from 0 to 100, with higher scores signifying being more popular. This metric can serve as a robust indicator of an artist's relevance in the current media landscape.  
+In this report, each artist’s Spotify ID will be fetched to obtain follower counts and popularity scores (both the artists and their top tracks) using API calls, offering insight into their current media presence.  
 
 3. YouTube channel data 
 
-Although the data provided by Spotify can interpret the general level of the artists’ enduring engagement, more detailed quantitative evidence and audience feedback is needed. Therefore, I will find their official YouTube channels to get the latest videos and their stats, including the views, comments, likes, favourites and comment texts. Due to daily API query limits, I will narrow my focus to a sample of 20 representative artists for this analysis.  
+Although the data provided by Spotify can interpret the general level of the artists’ enduring engagement, more detailed quantitative evidence and audience feedback is needed. Therefore, official YouTube channel statistics for 20 representative artists will be gathered. This includes views, comments, likes, favourites, and comment texts. Randomly sampling is expected here due to daily API query limits.  
 
-The final analytical dataset for this project will include two tables, one of which will consist of 5 columns and 100 rows, and another will include 8 columns and 20 rows.  
+The final dataset consists of two tables: 
+
+- The Spotify Data: 9 columns and 100 rows
+
+- The YouTube Data: 8 columns and 20 rows.   
 
 
 ## Anlysis
 
-The first few rows of the final structured Spotify data can be found below. In this section, I will visualise the data to interpret the artists’ current endurance.  
+The first few rows of the final structured Spotify data can be found as follows. In this section, I will visualise the data to interpret the artists’ current endurance.
 ```{r web scraping, cache=TRUE}
 
 # Load packages
@@ -174,6 +178,20 @@ get_artist_details <- function(id, token) {
   return(data.frame(followers = NA, popularity = NA))
 }
 
+# Create a function to get an artist's top track and its related details.
+get_top_track <- function(artist_id) {
+  top_track <- data.frame()
+  tracks <- get_artist_top_tracks(artist_id)
+  top_track <- data.frame(
+    top_track_name = tracks$name[1],
+    top_track_id = tracks$id[1],
+    track_popularity = tracks$popularity[1],
+    album_id = tracks$album.id[1]
+  )
+  return(top_track)
+}
+
+
 # Mapping the artists dataframe to add followers and popularity details.
 for (i in 1:nrow(greatest_100_artists)) {
   id <- greatest_100_artists$id[i]
@@ -182,9 +200,21 @@ for (i in 1:nrow(greatest_100_artists)) {
   greatest_100_artists$popularity[i] <- df$popularity[1]
 }
 
+# Mapping the artists dataframe to get their top tracks and popularity scores.
+tracks <- data.frame()
+for (i in 1:nrow(greatest_100_artists)) {
+  id <- greatest_100_artists$id[i]
+  if (length(get_top_track(id)) == 0) {
+    tracks <- rbind(tracks, rep(NA, ncol(tracks)))
+  }
+  else {tracks <- rbind(tracks, get_top_track(id))}
+}
+
+# Combine the data.
+greatest_100_artists <- cbind(greatest_100_artists, tracks)
+
 # Write this data into my local storage for future usage.
 write.csv(greatest_100_artists, "artists_spotify_data", row.names = FALSE)
-data <- read.csv("artists_spotify_data")
 ```
 
 ```{r review, echo=TRUE}
@@ -195,7 +225,7 @@ head(data)
 
 (Note: all charts here are interactive, hover to view each detailed data.)
 
-In the graph P1, the bar chart shows the number of followers of each artist on Spotify. An artist with more followers could be asserted to obtain a larger fan base and a stronger maintenance potential. Notably, the number of followers does not have a linear relationship with the rankings and varies extremely from one another. Artists such as Eminen, Queen, and The Beatles have a follower index that far exceeds any others. Eminen, especially, boasts nearly 80 million followers despite being ranked 83. But it is also evident that most artists’ fan base is under 10 million, with the lowest number of just 10 thousand, which is not exactly competitive in today’s music platforms.  
+In the graph P1, the bar chart shows the number of followers of each artist on Spotify. An artist with more followers could be asserted to obtain a larger fan base and a stronger maintenance potential. Notably, the number of followers does not have a linear relationship with the rankings and varies extremely from one another. Artists such as Eminen, Queen, and The Beatles have a follower index that far exceeds any others. Eminen, especially, boasts nearly 80 million followers despite being ranked 83. But it is also evident that most artists’ fan base is under 10 million, with the lowest number of just 10 thousand, which is not exactly competitive in today’s music platforms. 
 ```{r plot1, fig.align='center'}
 ## Visualisation ==========================================================
 # Load "plotly" package for generating interactive plots.
@@ -213,41 +243,69 @@ hchart(data, "bar", hcaes(x = Name, y = followers)) %>%
   hc_xAxis(labels = list(style = list(fontSize = '8px')))
 ```
 
-The heat maps P2 and P2-2 indicate the Spotify popularity score for each artist, with warmer colours representing higher popularity index. To specify, P2-2 is rearranged from P2 in descending order of popularity, providing a clearer vision of the distribution of this value across the cohort. We can assert that the majority of these artists are still celebrated today, with 90% receiving a popularity score of over 50 and 26% over 75. Combined with the previous distribution of fanbase, we can find that even without a massive fanbase, these artists rated as the greatest continue to gain adoration. Such data suggests that their classics are still racking up enduring heat today, as in being added to playlists and looped by countless listeners. 
+The heat maps indicate the Spotify popularity scores for the artists and their top tracks, with deeper colours representing higher popularity index. P2-2 and P2-3 are rearranged from P2 in descending order of popularity, providing a clearer vision of the distribution of this value across the cohort. We can assert that most of these artists are still celebrated today, with 90% receiving a popularity score of over 50 and 26% over 75. By comparing the colour distributions of P2-2 and P2-3, it is surprising to find that the top tracks of these artists enjoy a higher degree of popularity, with over a half of them surpassing the popularity score threshold of 75. 
+
+These findings suggest that even without a massive fanbase, these artists rated as the greatest continue to gain adoration, and their tracks are still racking up enduring heat today, being added to playlists and looped by countless listeners.
 ```{r plot2, fig.align='center'}
 # Create a heat map to show the popularity of all artists.
 data$hover_info2 <- paste("Name:", data$Name, "<br>Popularity:", data$popularity, "<br>Rank:", data$Rank) # Set the hover information.
-heatmap <- ggplot(data, aes(x = Name, y = 1, fill = popularity, text = hover_info2)) +
-  geom_tile(color = "white") + # Create a tile plot.
-  labs(title = "P2. The Spotify Popularity Score of the 100 Greates Artists") +
-  theme_minimal() + # Set up the theme.
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6), # Set the text of the x axis.
-        axis.text.y = element_blank(), # Hide the text of the y axis.
-        axis.ticks.y = element_blank(), # Hide the scale on the y axis of the chart.
-        axis.title.y = element_blank(), # Hide the title of the y axis.
-        axis.title.x = element_blank(), # Hide the title of the x axis.
-        panel.grid = element_blank()) + # Hide the grid.
-  scale_fill_gradientn(colors = c("white", "lightyellow", "red")) # Specify a gradient fill. 
-ggplotly(heatmap, tooltip = "text") # Display the interactive plot.
+data$hover_info3 <- paste("Name:", data$Name, "<br>Track Popularity:", data$track_popularity, "<br>Rank:", data$Rank) # Set the hover information.
 ```
 
 ```{r plot3, fig.align='center'}
+library(tidyverse)
+
+# Compare the tracks' popularity with the artists' popularity scores.
+# Transform the data to a longer format.
+data_long <- data %>% 
+  pivot_longer(cols = c(popularity, track_popularity),
+                                   names_to = "popularity_type") %>%
+  na.omit()
+
+# Draw a heat map comparing the popularity between the artists' and their top tracks.
+hchart(data_long, "heatmap", hcaes(x = Name, y = popularity_type, value = value)) %>%
+  hc_xAxis(categories = unique(data_long$Name)) %>%
+  # Adjust the color scale.
+  hc_colorAxis(minColor = "white",
+               maxColor = "#DC143C") %>%
+  # Adjust the hover information.
+  hc_tooltip(formatter = JS("function () { 
+                     return '<b>' + this.series.xAxis.categories[this.point.x] +
+                     '</b>, Value: <b>' + 
+                            this.point.value.toFixed(2) + '</b>'; 
+                   }")
+  ) %>%
+  # Customize axes and labels.
+  hc_xAxis(title = list(text = "Name")) %>%
+  hc_yAxis(title = list(text = "Popularity Type")) %>%
+  # Customize the title of the legend.
+  hc_legend(title = list(text = "Popularity Index")) %>%
+  # Add a title.
+  hc_title(text = "P2-1. Comparison of Popularity Scores Between Artists and Their Top Tracks")
+
 # Create some popularity thresholds for analysis.
 data_reverse <- data[order(-data$popularity),] # Reorder the artists data.
 data_reverse$Name <- factor(data_reverse$Name, levels = data_reverse$Name) # Convert the Name column into a factor.
 divider_position <- which(data_reverse$popularity == 50)[1] # Find the first threshold where popularity score equals to 50.
 divider_position2 <- which(data_reverse$popularity == 75)[2] # Find another threshold where popularity score equals to 75.
 
+# Create another two popularity threshold points.
+data_reverse2 <- data[order(-data$track_popularity),] # Reorder the artists data.
+data_reverse2$Name <- factor(data_reverse2$Name, levels = data_reverse2$Name) # Convert the Name column into a factor.
+track_divider_position <- which(data_reverse2$track_popularity == 50)[1] # Find the first threshold where track popularity score equals to 50.
+track_divider_position2 <- which(data_reverse2$track_popularity == 75)[5] # Find another threshold where track popularity score equals to 75.
+
 # Create another heat map to show the popularity of all artists after sorting in reverse order of the popularity index.
 # This is done for comparing the differences between the rankings and popularity of all artists.
 heatmap_compare <- ggplot(data, aes(x = reorder(Name, -popularity), y = 1, fill = popularity, text = hover_info2)) +
   geom_tile() + # Create a tile plot.
+  # Add vertical lines to the graph as thresholds.
   geom_vline(xintercept = divider_position, color = "darkblue", linetype = "dashed", linewidth = 0.3) +
   geom_vline(xintercept = divider_position2, color = "darkblue", linetype = "dashed", linewidth = 0.3) +
   labs(title = "P2-2. The Spotify Popularity Score of the 100 Greates Artists", x = "Name", y = "", fill = "Popularity") + # Set the labs.
-  # Add annatations.
-  annotate("text", label = "Popularity score: 50", x = divider_position, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) + 
-  annotate("text", label = "Popularity score: 75", x = divider_position2, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) +
+  # Add annotations.
+  annotate("text", label = "Popularity: 50", x = divider_position, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) + 
+  annotate("text", label = "Popularity: 75", x = divider_position2, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) +
   annotate("text", label = "26%", x = divider_position2/2, y = 1.25, color = "darkgreen") +
   annotate("text", label = "64%", x = (divider_position+divider_position2)/2, y = 1.25, color = 'darkgreen') +
   annotate("text", label = "10%", x = (divider_position+100)/2, y = 1.25, color = 'darkgreen') +
@@ -260,6 +318,29 @@ heatmap_compare <- ggplot(data, aes(x = reorder(Name, -popularity), y = 1, fill 
         panel.grid = element_blank()) + # Hide the grid.
   scale_fill_gradientn(colors = c("white", "lightyellow", "red")) # Specify a gradient fill.
 ggplotly(heatmap_compare, tooltip = "text") # Display the interactive plot.
+
+# Create another heatmap, indicating the track popularity.
+heatmap_compare2 <- ggplot(data, aes(x = reorder(Name, -track_popularity), y = 1, fill = track_popularity, text = hover_info3)) +
+  geom_tile() + # Create a tile plot.
+  # Add vertical lines to the graph as thresholds.
+  geom_vline(xintercept = track_divider_position, color = "darkblue", linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = track_divider_position2, color = "darkblue", linetype = "dashed", linewidth = 0.3) +
+  labs(title = "P2-3. The Spotify Popularity Score of the 100 Greates Artists' Top Tracks", x = "Name", y = "", fill = "Popularity") + # Set the labs.
+  # Add annotations.
+  annotate("text", label = "Popularity: 50", x = divider_position, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) + 
+  annotate("text", label = "Popularity: 75", x = track_divider_position2, y = 1, angle = 90, vjust = -0.5, color = "darkblue", size = 3) +
+  annotate("text", label = "54%", x = track_divider_position2/2, y = 1.25, color = "darkgreen") +
+  annotate("text", label = "41%", x = (track_divider_position+track_divider_position2)/2, y = 1.25, color = 'darkgreen') +
+  annotate("text", label = "5%", x = (track_divider_position+100)/2, y = 1.25, color = 'darkgreen') +
+  theme_minimal() + # Set the theme.
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6), # Set the text of the x axis.
+        axis.text.y = element_blank(), # Hide the text of the y axis.
+        axis.ticks.y = element_blank(), # Hide the scale on the y axis of the chart.
+        axis.title.y = element_blank(), # Hide the title of the y axis.
+        axis.title.x = element_blank(), # Hide the title of the x axis.
+        panel.grid = element_blank()) + # Hide the grid.
+  scale_fill_gradientn(colors = c("white", "lightyellow", "red")) # Specify a gradient fill.
+ggplotly(heatmap_compare2, tooltip = "text") # Display the interactive plot.
 
 ```
 
@@ -421,22 +502,28 @@ load("youtube_sample_data.RData")
 head(video_data2)
 ```
 
-The bar charts below illustrate the statistics of the latest YouTube video of each sample artist. Comparing the two graphs we can find that the distribution of likes and views is roughly in the same trend, with The Ramones and Madonna ranking the highest. Like previous Spotify follower statistics, only a handful of artists are enjoying high streaming flow for their work now. However, this doesn't mean they're being forgotten, as the final word cloud derived from the text of these video comments shows, they're still being "loved". 
+The bar charts below illustrate the statistics of the latest YouTube video of each sample artist. Comparing the two graphs we can find that the distribution of likes and views is roughly in the same trend, with The Ramones and Madonna ranking the highest. Like previous Spotify follower statistics, only a handful of artists are enjoying high streaming flow for their work now. However, this doesn't mean they're being forgotten, as the central word of the final word cloud derived from the comment text of these video shows, they're still being "loved".  
 ```{r visualisation2, echo=FALSE, fig.align='center'}
 library(tidyverse)
+# Transform the data to longer format.
 transformed_data <- video_data2 %>%
   pivot_longer(cols = c(LikeCount, CommentCount),
                names_to = "Statistics")
+# Transform the value column into numeric.
 transformed_data$value <- as.numeric(transformed_data$value)
+
+# Draw a bar chart of likes and comment counts.
 hchart(transformed_data, "bar", hcaes(x = Name, y = value, group = Statistics)) %>%
   hc_title(text = "P3. Statistics of the Latest Videos of Sample Artists")
 
+# Transform the view count column into numeric.
 video_data2$ViewCount <- as.numeric(video_data2$ViewCount)
+# Draw a bar chart of view counts.
 hchart(video_data2, "bar", hcaes(x = Name, y = ViewCount)) %>%
   hc_title(text = "P3-2. Sample Artist's Latest Video Views")
 
 ```
-```{r visual3, echo=FALSE, fig.align='center'}
+```{r wordcloud, echo=FALSE, fig.align='center'}
 #install.packages("tm")
 #install.packages("wordcloud")
 library(tm) # Use the "tm" (Text Mining) package to process the text.
@@ -451,10 +538,13 @@ corpus <- tm_map(corpus, content_transformer(tolower))
 corpus <- tm_map(corpus, removePunctuation)
 corpus <- tm_map(corpus, removeWords, stopwords("english"))
 
-wordcloud(corpus, scale=c(5,0.6), max.words=80, random.order=FALSE, rot.per=0, colors=brewer.pal(8, "Set1"))
+# Create a word cloud of the comments.
+wordcloud(corpus, scale=c(4,0.6), max.words=80, random.order=FALSE, rot.per=0, colors=brewer.pal(8, "Set1"))
+title(main = "P4. Word Cloud of YouTube Comments")
 ```
 
-In conclusion, although the Greatest 100 Artists may not be as widely listened to as in the past, they continue to hold a special place in the musical landscape, with their works transcending time and space, underscoring their enduring impact in the world of music. 
+## Conclusion
+In conclusion, although the Greatest 100 Artists may not be as widely followed as in the past, they continue to hold a special place in the musical landscape, with their works transcending time and space, underscoring their enduring impact in the world of music. Their music tracks are celebrated by numerous listeners today, as evidenced by statistics on Spotify, and data from YouTube that demonstrate the long-lasting love from their dedicated audience. 
 
 ## Appendix: All code in this assignment
 

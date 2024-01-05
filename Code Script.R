@@ -131,6 +131,19 @@ get_artist_details <- function(id, token) {
   return(data.frame(followers = NA, popularity = NA))
 }
 
+# Create a function to get an artist's top track and its related details.
+get_top_track <- function(artist_id) {
+  top_track <- data.frame()
+  tracks <- get_artist_top_tracks(artist_id)
+  top_track <- data.frame(
+    top_track_name = tracks$name[1],
+    top_track_id = tracks$id[1],
+    track_popularity = tracks$popularity[1],
+    album_id = tracks$album.id[1]
+  )
+  return(top_track)
+}
+
 # Mapping the artists dataframe to add followers and popularity details.
 for (i in 1:nrow(greatest_100_artists)) {
   id <- greatest_100_artists$id[i]
@@ -138,6 +151,19 @@ for (i in 1:nrow(greatest_100_artists)) {
   greatest_100_artists$followers[i] <- df$followers[1]
   greatest_100_artists$popularity[i] <- df$popularity[1]
 }
+
+# Get the artistss top tracks and details.
+tracks <- data.frame()
+for (i in 1:nrow(greatest_100_artists)) {
+  id <- greatest_100_artists$id[i]
+  if (length(get_top_track(id)) == 0) {
+    tracks <- rbind(tracks, rep(NA, ncol(tracks)))
+  }
+  else {tracks <- rbind(tracks, get_top_track(id))}
+}
+
+albums <- get_artist_albums("3WrFJ7ztbogyGnTHbHJFl2")
+
 
 # Review the first few rows of the updated dataframe.
 head(greatest_100_artists)
